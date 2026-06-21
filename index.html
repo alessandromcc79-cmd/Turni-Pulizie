@@ -22,7 +22,6 @@
             padding: 25px;
             border-radius: 12px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-            box-sizing: border-box;
         }
         h1 {
             text-align: center;
@@ -56,72 +55,6 @@
             color: #27ae60;
             font-weight: 500;
         }
-
-        /* STILI DELLA BARRA TEMPORALE CORRETTI */
-        .timeline-container {
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 2px dashed #eee;
-            width: 100%;
-        }
-        .timeline-title {
-            text-align: center;
-            font-size: 13px;
-            color: #95a5a6;
-            margin-bottom: 20px;
-            font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        .timeline {
-            display: flex;
-            justify-content: space-between;
-            position: relative;
-            width: 100%;
-            padding: 0;
-        }
-        /* La linea grigia di sfondo orizzontale */
-        .timeline::before {
-            content: '';
-            position: absolute;
-            top: 29px; /* Allineata perfettamente al centro dei pallini */
-            left: 15px;
-            right: 15px;
-            height: 4px;
-            background-color: #e0e0e0;
-            z-index: 1;
-        }
-        .day-step {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            position: relative;
-            z-index: 2;
-            flex: 1; /* Distribuisce i giorni in modo equo su tutta la larghezza */
-        }
-        .day-label {
-            font-size: 12px;
-            font-weight: 600;
-            color: #7f8c8d;
-            margin-bottom: 8px;
-        }
-        .dot {
-            width: 12px;
-            height: 12px;
-            background-color: #bdc3c7;
-            border-radius: 50%;
-            transition: all 0.3s ease;
-        }
-        /* Stile per il giorno corrente (Ago attivo) */
-        .day-step.active .dot {
-            background-color: #e74c3c;
-            transform: scale(1.4);
-            box-shadow: 0 0 8px rgba(231, 76, 60, 0.6);
-        }
-        .day-step.active .day-label {
-            color: #e74c3c;
-            font-weight: bold;
-        }
     </style>
 </head>
 <body>
@@ -132,19 +65,6 @@
     
     <div id="turni-list">
         </div>
-
-    <div class="timeline-container">
-        <div class="timeline-title">Avanzamento Settimana</div>
-        <div class="timeline" id="timeline-days">
-            <div class="day-step" id="day-1"><span class="day-label">Lun</span><div class="dot"></div></div>
-            <div class="day-step" id="day-2"><span class="day-label">Mar</span><div class="dot"></div></div>
-            <div class="day-step" id="day-3"><span class="day-label">Mer</span><div class="dot"></div></div>
-            <div class="day-step" id="day-4"><span class="day-label">Gio</span><div class="dot"></div></div>
-            <div class="day-step" id="day-5"><span class="day-label">Ven</span><div class="dot"></div></div>
-            <div class="day-step" id="day-6"><span class="day-label">Sab</span><div class="dot"></div></div>
-            <div class="day-step" id="day-7"><span class="day-label">Dom</span><div class="dot"></div></div>
-        </div>
-    </div>
 </div>
 
 <script>
@@ -162,36 +82,27 @@
     function getWeekRangeString(d) {
         const corrente = new Date(d);
         const giornoSettimana = corrente.getDay();
+        // Calcoliamo il lunedì della settimana corrente
         const distanzaDalLunedi = giornoSettimana === 0 ? -6 : 1 - giornoSettimana;
         
         const lunedi = new Date(corrente);
-        lunedi.setDate(corrente.getDate() +距離DalLunedi);
         lunedi.setDate(corrente.getDate() + distanzaDalLunedi);
         
         const domenica = new Date(lunedi);
         domenica.setDate(lunedi.getDate() + 6);
         
+        const opzioni = { day: 'numeric' };
+        const opzioniMeseAnno = { day: 'numeric', month: 'long', year: 'numeric' };
+        
+        // Se il mese è lo stesso, ottimizziamo la stringa (es. dal 22 al 28 Giugno 2026)
         if (lunedi.getMonth() === domenica.getMonth()) {
             const meseAnnoStr = domenica.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
             return `dal ${lunedi.getDate()} al ${domenica.getDate()} ${meseAnnoStr}`;
         } else {
+            // Se i mesi cambiano a metà settimana
             const lunediStr = lunedi.toLocaleDateString('it-IT', { day: 'numeric', month: 'long' });
-            const domenicaStr = domenica.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' });
+            const domenicaStr = domenica.toLocaleDateString('it-IT', opzioniMeseAnno);
             return `dal ${lunediStr} al ${domenicaStr}`;
-        }
-    }
-
-    function aggiornaTimeline(oggi) {
-        let giornoCorrente = oggi.getDay();
-        let indiceTimeline = giornoCorrente === 0 ? 7 : giornoCorrente;
-        
-        for (let i = 1; i <= 7; i++) {
-            document.getElementById(`day-${i}`).classList.remove('active');
-        }
-        
-        const elementoGiorno = document.getElementById(`day-${indiceTimeline}`);
-        if (elementoGiorno) {
-            elementoGiorno.classList.add('active');
         }
     }
 
@@ -199,6 +110,7 @@
         const oggi = new Date();
         const settimanaCorrente = getWeekNumber(oggi);
         
+        // Mostra l'intervallo di date esatto della settimana
         document.getElementById('week-display').innerText = `Settimana ${getWeekRangeString(oggi)}`;
         
         const listaContainer = document.getElementById('turni-list');
@@ -221,5 +133,10 @@
             `;
             listaContainer.appendChild(row);
         });
+    }
 
-        aggiornaTimeline(oggi
+    generaTurni();
+</script>
+
+</body>
+</html>
