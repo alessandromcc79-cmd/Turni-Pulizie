@@ -32,9 +32,10 @@
         .week-info {
             text-align: center;
             color: #7f8c8d;
-            font-size: 14px;
+            font-size: 15px;
             margin-bottom: 25px;
             font-weight: 500;
+            text-transform: capitalize;
         }
         .turno-row {
             display: flex;
@@ -60,7 +61,7 @@
 
 <div class="container">
     <h1>🧹 Turni Pulizie Settimanali</h1>
-    <div class="week-info" id="week-display">Caricamento settimana...</div>
+    <div class="week-info" id="week-display">Caricamento date...</div>
     
     <div id="turni-list">
         </div>
@@ -78,12 +79,39 @@
         return weekNo;
     }
 
+    function getWeekRangeString(d) {
+        const corrente = new Date(d);
+        const giornoSettimana = corrente.getDay();
+        // Calcoliamo il lunedì della settimana corrente
+        const distanzaDalLunedi = giornoSettimana === 0 ? -6 : 1 - giornoSettimana;
+        
+        const lunedi = new Date(corrente);
+        lunedi.setDate(corrente.getDate() + distanzaDalLunedi);
+        
+        const domenica = new Date(lunedi);
+        domenica.setDate(lunedi.getDate() + 6);
+        
+        const opzioni = { day: 'numeric' };
+        const opzioniMeseAnno = { day: 'numeric', month: 'long', year: 'numeric' };
+        
+        // Se il mese è lo stesso, ottimizziamo la stringa (es. dal 22 al 28 Giugno 2026)
+        if (lunedi.getMonth() === domenica.getMonth()) {
+            const meseAnnoStr = domenica.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
+            return `dal ${lunedi.getDate()} al ${domenica.getDate()} ${meseAnnoStr}`;
+        } else {
+            // Se i mesi cambiano a metà settimana
+            const lunediStr = lunedi.toLocaleDateString('it-IT', { day: 'numeric', month: 'long' });
+            const domenicaStr = domenica.toLocaleDateString('it-IT', opzioniMeseAnno);
+            return `dal ${lunediStr} al ${domenicaStr}`;
+        }
+    }
+
     function generaTurni() {
         const oggi = new Date();
         const settimanaCorrente = getWeekNumber(oggi);
-        const annoCorrente = oggi.getFullYear();
         
-        document.getElementById('week-display').innerText = `Settimana N° ${settimanaCorrente} del ${annoCorrente}`;
+        // Mostra l'intervallo di date esatto della settimana
+        document.getElementById('week-display').innerText = `Settimana ${getWeekRangeString(oggi)}`;
         
         const listaContainer = document.getElementById('turni-list');
         listaContainer.innerHTML = ''; 
@@ -91,7 +119,6 @@
         const totali = persone.length;
 
         persone.forEach((persona, index) => {
-            // Configurato per far partire la combinazione esatta da domani (settimana 26)
             let indiceZona = (index + (settimanaCorrente - 26)) % totali;
             if (indiceZona < 0) {
                 indiceZona += totali;
