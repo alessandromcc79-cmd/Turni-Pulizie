@@ -22,6 +22,7 @@
             padding: 25px;
             border-radius: 12px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            box-sizing: border-box;
         }
         h1 {
             text-align: center;
@@ -56,17 +57,18 @@
             font-weight: 500;
         }
 
-        /* STILI DELLA BARRA TEMPORALE */
+        /* STILI DELLA BARRA TEMPORALE CORRETTI */
         .timeline-container {
             margin-top: 30px;
             padding-top: 20px;
             border-top: 2px dashed #eee;
+            width: 100%;
         }
         .timeline-title {
             text-align: center;
             font-size: 13px;
             color: #95a5a6;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
             font-weight: bold;
             text-transform: uppercase;
             letter-spacing: 1px;
@@ -75,15 +77,16 @@
             display: flex;
             justify-content: space-between;
             position: relative;
-            padding: 0 10px;
+            width: 100%;
+            padding: 0;
         }
-        /* La linea grigia di sfondo */
+        /* La linea grigia di sfondo orizzontale */
         .timeline::before {
             content: '';
             position: absolute;
-            top: 15px;
-            left: 20px;
-            right: 20px;
+            top: 29px; /* Allineata perfettamente al centro dei pallini */
+            left: 15px;
+            right: 15px;
             height: 4px;
             background-color: #e0e0e0;
             z-index: 1;
@@ -94,26 +97,25 @@
             align-items: center;
             position: relative;
             z-index: 2;
-            flex-1;
+            flex: 1; /* Distribuisce i giorni in modo equo su tutta la larghezza */
+        }
+        .day-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #7f8c8d;
+            margin-bottom: 8px;
         }
         .dot {
             width: 12px;
             height: 12px;
             background-color: #bdc3c7;
             border-radius: 50%;
-            margin-top: 11px; /* Centra il pallino sulla linea di 4px */
             transition: all 0.3s ease;
         }
-        .day-label {
-            font-size: 12px;
-            font-weight: 600;
-            color: #7f8c8d;
-            margin-bottom: 4px;
-        }
-        /* Stile per il giorno corrente (Ago / Indicatore) */
+        /* Stile per il giorno corrente (Ago attivo) */
         .day-step.active .dot {
             background-color: #e74c3c;
-            transform: scale(1.5);
+            transform: scale(1.4);
             box-shadow: 0 0 8px rgba(231, 76, 60, 0.6);
         }
         .day-step.active .day-label {
@@ -163,6 +165,7 @@
         const distanzaDalLunedi = giornoSettimana === 0 ? -6 : 1 - giornoSettimana;
         
         const lunedi = new Date(corrente);
+        lunedi.setDate(corrente.getDate() +距離DalLunedi);
         lunedi.setDate(corrente.getDate() + distanzaDalLunedi);
         
         const domenica = new Date(lunedi);
@@ -179,17 +182,13 @@
     }
 
     function aggiornaTimeline(oggi) {
-        // getDay() restituisce 0 per Domenica, 1 per Lunedì, ecc.
         let giornoCorrente = oggi.getDay();
-        // Trasformiamolo in 1 per Lunedì, 2 per Martedì... 7 per Domenica
         let indiceTimeline = giornoCorrente === 0 ? 7 : giornoCorrente;
         
-        // Rimuove eventuali classi active precedenti (per sicurezza)
         for (let i = 1; i <= 7; i++) {
             document.getElementById(`day-${i}`).classList.remove('active');
         }
         
-        // Illumina il giorno corrente spostando l'"ago" visivo
         const elementoGiorno = document.getElementById(`day-${indiceTimeline}`);
         if (elementoGiorno) {
             elementoGiorno.classList.add('active');
@@ -216,4 +215,11 @@
 
             const row = document.createElement('div');
             row.className = 'turno-row';
-            row.innerHTML =
+            row.innerHTML = `
+                <span class="persona">${persona}</span>
+                <span class="compito">${zonaAssegnata}</span>
+            `;
+            listaContainer.appendChild(row);
+        });
+
+        aggiornaTimeline(oggi
