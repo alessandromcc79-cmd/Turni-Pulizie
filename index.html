@@ -22,12 +22,19 @@
             padding: 25px;
             border-radius: 12px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
         }
         h1 {
             text-align: center;
             color: #2c3e50;
             margin-top: 0;
             font-size: 24px;
+        }
+        h2 {
+            text-align: center;
+            color: #2c3e50;
+            font-size: 19px;
+            margin-top: 0;
         }
         .week-info {
             text-align: center;
@@ -46,6 +53,15 @@
             background-color: #f8f9fa;
             border-radius: 8px;
             border-left: 5px solid #2ecc71;
+            gap: 10px;
+        }
+        .turno-row.fatto {
+            border-left-color: #27ae60;
+            background-color: #eafaf1;
+        }
+        .info-persona {
+            display: flex;
+            flex-direction: column;
         }
         .persona {
             font-weight: bold;
@@ -54,6 +70,63 @@
         .compito {
             color: #27ae60;
             font-weight: 500;
+            font-size: 14px;
+        }
+        .btn-fatto {
+            border: none;
+            border-radius: 20px;
+            padding: 8px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            background-color: #dcdfe1;
+            color: #555;
+            transition: background-color 0.2s ease;
+            white-space: nowrap;
+        }
+        .btn-fatto.attivo {
+            background-color: #27ae60;
+            color: white;
+        }
+        .btn-fatto:disabled {
+            opacity: 0.6;
+            cursor: default;
+        }
+        .storico-week {
+            margin-bottom: 16px;
+        }
+        .storico-week-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            margin-bottom: 6px;
+        }
+        .storico-riga {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            font-size: 14px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .storico-riga:last-child {
+            border-bottom: none;
+        }
+        .storico-stato {
+            font-size: 12px;
+            color: #95a5a6;
+        }
+        .storico-stato.ok {
+            color: #27ae60;
+            font-weight: 600;
+        }
+        .placeholder {
+            text-align: center;
+            color: #95a5a6;
+            font-size: 14px;
+            padding: 10px 0;
         }
     </style>
 </head>
@@ -62,80 +135,231 @@
 <div class="container">
     <h1>🧹 Turni Pulizie Settimanali</h1>
     <div class="week-info" id="week-display">Caricamento date...</div>
-    
+
     <div id="turni-list">
         </div>
 </div>
 
-<script>
+<div class="container">
+    <h2>📋 Registro Storico</h2>
+    <div id="storico-list">
+        <div class="placeholder">Caricamento registro...</div>
+    </div>
+</div>
+
+<!-- ============================================================
+     CONFIGURAZIONE FIREBASE (progetto "turni-pulizie-casa", piano gratuito Spark)
+     ============================================================ -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+    import {
+        getFirestore, collection, doc, setDoc, onSnapshot,
+        query, orderBy, limit, serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyBR1FBuGzdJdUcK6OQDD5QxeU6WfwrfUOQ",
+        authDomain: "turni-pulizie-casa.firebaseapp.com",
+        projectId: "turni-pulizie-casa",
+        storageBucket: "turni-pulizie-casa.firebasestorage.app",
+        messagingSenderId: "883113912691",
+        appId: "1:883113912691:web:6cf10c10160a23ec69fd06"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const COLLEZIONE = "registro_pulizie";
+
     const persone = ["Ale", "Marco S.", "Marco M."];
     const zone = ["Cucina", "Bagno & Bagnetto", "Corridoio"];
 
+    function slugify(s) {
+        return s.toLowerCase()
+            .normalize("NFD").replace(/[̀-ͯ]/g, "")
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/(^-|-$)/g, "");
+    }
+
+    function getWeekInfo(d) {
+        const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+        date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7));
+        const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+        const weekNo = Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+        return { anno: date.getUTCFullYear(), settimana: weekNo };
+    }
+
     function getWeekNumber(d) {
-        d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-        d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
-        var yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
-        var weekNo = Math.ceil(( ( (d - yearStart) / 86400000) + 1)/7);
-        return weekNo;
+        return getWeekInfo(d).settimana;
+    }
+
+    function getWeekKey(d) {
+        const { anno, settimana } = getWeekInfo(d);
+        return `${anno}-W${String(settimana).padStart(2, "0")}`;
     }
 
     function getWeekRangeString(d) {
         const corrente = new Date(d);
         const giornoSettimana = corrente.getDay();
-        // Calcoliamo il lunedì della settimana corrente
         const distanzaDalLunedi = giornoSettimana === 0 ? -6 : 1 - giornoSettimana;
-        
+
         const lunedi = new Date(corrente);
         lunedi.setDate(corrente.getDate() + distanzaDalLunedi);
-        
+
         const domenica = new Date(lunedi);
         domenica.setDate(lunedi.getDate() + 6);
-        
-        const opzioni = { day: 'numeric' };
-        const opzioniMeseAnno = { day: 'numeric', month: 'long', year: 'numeric' };
-        
-        // Se il mese è lo stesso, ottimizziamo la stringa (es. dal 22 al 28 Giugno 2026)
+
+        const opzioniMeseAnno = { day: "numeric", month: "long", year: "numeric" };
+
         if (lunedi.getMonth() === domenica.getMonth()) {
-            const meseAnnoStr = domenica.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
+            const meseAnnoStr = domenica.toLocaleDateString("it-IT", { month: "long", year: "numeric" });
             return `dal ${lunedi.getDate()} al ${domenica.getDate()} ${meseAnnoStr}`;
         } else {
-            // Se i mesi cambiano a metà settimana
-            const lunediStr = lunedi.toLocaleDateString('it-IT', { day: 'numeric', month: 'long' });
-            const domenicaStr = domenica.toLocaleDateString('it-IT', opzioniMeseAnno);
+            const lunediStr = lunedi.toLocaleDateString("it-IT", { day: "numeric", month: "long" });
+            const domenicaStr = domenica.toLocaleDateString("it-IT", opzioniMeseAnno);
             return `dal ${lunediStr} al ${domenicaStr}`;
         }
     }
 
-    function generaTurni() {
+    function assegnaZona(persona, index, settimanaCorrente, totali) {
+        let indiceZona = (index + (settimanaCorrente - 26)) % totali;
+        if (indiceZona < 0) indiceZona += totali;
+        return zone[indiceZona];
+    }
+
+    // Stato dei documenti della settimana corrente, aggiornato in tempo reale
+    let statoSettimanaCorrente = {};
+    let weekKeyCorrente = "";
+    let weekLabelCorrente = "";
+
+    function renderTurni() {
         const oggi = new Date();
         const settimanaCorrente = getWeekNumber(oggi);
-        
-        // Mostra l'intervallo di date esatto della settimana
-        document.getElementById('week-display').innerText = `Settimana ${getWeekRangeString(oggi)}`;
-        
-        const listaContainer = document.getElementById('turni-list');
-        listaContainer.innerHTML = ''; 
+        weekKeyCorrente = getWeekKey(oggi);
+        weekLabelCorrente = getWeekRangeString(oggi);
+
+        document.getElementById("week-display").innerText = `Settimana ${weekLabelCorrente}`;
+
+        const listaContainer = document.getElementById("turni-list");
+        listaContainer.innerHTML = "";
 
         const totali = persone.length;
 
         persone.forEach((persona, index) => {
-            let indiceZona = (index + (settimanaCorrente - 26)) % totali;
-            if (indiceZona < 0) {
-                indiceZona += totali;
-            }
-            const zonaAssegnata = zone[indiceZona];
+            const zonaAssegnata = assegnaZona(persona, index, settimanaCorrente, totali);
+            const docId = `${weekKeyCorrente}__${slugify(persona)}__${slugify(zonaAssegnata)}`;
+            const fatto = !!(statoSettimanaCorrente[docId] && statoSettimanaCorrente[docId].fatto);
 
-            const row = document.createElement('div');
-            row.className = 'turno-row';
+            const row = document.createElement("div");
+            row.className = "turno-row" + (fatto ? " fatto" : "");
             row.innerHTML = `
-                <span class="persona">${persona}</span>
-                <span class="compito">${zonaAssegnata}</span>
+                <div class="info-persona">
+                    <span class="persona">${persona}</span>
+                    <span class="compito">${zonaAssegnata}</span>
+                </div>
+                <button class="btn-fatto ${fatto ? "attivo" : ""}" data-doc-id="${docId}" data-persona="${persona}" data-zona="${zonaAssegnata}">
+                    ${fatto ? "✅ Fatto" : "Ho pulito"}
+                </button>
             `;
             listaContainer.appendChild(row);
         });
+
+        listaContainer.querySelectorAll(".btn-fatto").forEach(btn => {
+            btn.addEventListener("click", onToggleFatto);
+        });
     }
 
-    generaTurni();
+    async function onToggleFatto(e) {
+        const btn = e.currentTarget;
+        const docId = btn.dataset.docId;
+        const persona = btn.dataset.persona;
+        const zona = btn.dataset.zona;
+        const attualmenteFatto = !!(statoSettimanaCorrente[docId] && statoSettimanaCorrente[docId].fatto);
+
+        btn.disabled = true;
+        try {
+            await setDoc(doc(db, COLLEZIONE, docId), {
+                persona,
+                zona,
+                settimana: weekKeyCorrente,
+                settimanaLabel: weekLabelCorrente,
+                fatto: !attualmenteFatto,
+                timestamp: serverTimestamp()
+            }, { merge: true });
+        } catch (err) {
+            console.error("Errore salvataggio registro:", err);
+            alert("Errore nel salvare. Controlla la connessione e riprova.");
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    function formattaData(ts) {
+        if (!ts) return "";
+        const d = ts.toDate ? ts.toDate() : new Date(ts);
+        return d.toLocaleString("it-IT", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+    }
+
+    function renderStorico(righe) {
+        const container = document.getElementById("storico-list");
+        container.innerHTML = "";
+
+        if (righe.length === 0) {
+            container.innerHTML = '<div class="placeholder">Nessuna pulizia registrata ancora.</div>';
+            return;
+        }
+
+        // Raggruppa per settimana mantenendo l'ordine (più recente prima)
+        const gruppi = new Map();
+        righe.forEach(r => {
+            if (!gruppi.has(r.settimana)) gruppi.set(r.settimana, { label: r.settimanaLabel, righe: [] });
+            gruppi.get(r.settimana).righe.push(r);
+        });
+
+        gruppi.forEach(gruppo => {
+            const wrap = document.createElement("div");
+            wrap.className = "storico-week";
+            wrap.innerHTML = `<div class="storico-week-title">${gruppo.label || ""}</div>`;
+
+            gruppo.righe.forEach(r => {
+                const riga = document.createElement("div");
+                riga.className = "storico-riga";
+                riga.innerHTML = `
+                    <span>${r.persona} — ${r.zona}</span>
+                    <span class="storico-stato ${r.fatto ? "ok" : ""}">
+                        ${r.fatto ? "✅ " + formattaData(r.timestamp) : "in attesa"}
+                    </span>
+                `;
+                wrap.appendChild(riga);
+            });
+            container.appendChild(wrap);
+        });
+    }
+
+    // Ascolto in tempo reale: ultime 300 registrazioni (storico completo + margine per il futuro)
+    const q = query(collection(db, COLLEZIONE), orderBy("timestamp", "desc"), limit(300));
+    onSnapshot(q, (snapshot) => {
+        const righe = [];
+        statoSettimanaCorrente = {};
+
+        snapshot.forEach(docSnap => {
+            const data = docSnap.data();
+            righe.push({ id: docSnap.id, ...data });
+            if (data.settimana === weekKeyCorrente || !weekKeyCorrente) {
+                statoSettimanaCorrente[docSnap.id] = data;
+            }
+        });
+
+        renderTurni();
+        renderStorico(righe);
+    }, (err) => {
+        console.error("Errore lettura registro:", err);
+        document.getElementById("storico-list").innerHTML =
+            '<div class="placeholder">Impossibile caricare il registro. Controlla la configurazione Firebase.</div>';
+        renderTurni();
+    });
+
+    // Primo render immediato (senza attendere Firestore) così la pagina non resta vuota
+    renderTurni();
 </script>
 
 </body>
