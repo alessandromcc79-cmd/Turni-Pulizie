@@ -173,6 +173,12 @@
     const persone = ["Ale", "Marco S.", "Marco M."];
     const zone = ["Cucina", "Bagno & Bagnetto", "Corridoio"];
 
+    function escapeHtml(str) {
+        return String(str).replace(/[&<>"']/g, c => ({
+            "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+        }[c]));
+    }
+
     function slugify(s) {
         return s.toLowerCase()
             .normalize("NFD").replace(/[̀-ͯ]/g, "")
@@ -253,10 +259,10 @@
             row.className = "turno-row" + (fatto ? " fatto" : "");
             row.innerHTML = `
                 <div class="info-persona">
-                    <span class="persona">${persona}</span>
-                    <span class="compito">${zonaAssegnata}</span>
+                    <span class="persona">${escapeHtml(persona)}</span>
+                    <span class="compito">${escapeHtml(zonaAssegnata)}</span>
                 </div>
-                <button class="btn-fatto ${fatto ? "attivo" : ""}" data-doc-id="${docId}" data-persona="${persona}" data-zona="${zonaAssegnata}">
+                <button class="btn-fatto ${fatto ? "attivo" : ""}" data-doc-id="${docId}" data-persona="${escapeHtml(persona)}" data-zona="${escapeHtml(zonaAssegnata)}">
                     ${fatto ? "✅ Fatto" : "Ho pulito"}
                 </button>
             `;
@@ -318,15 +324,15 @@
         gruppi.forEach(gruppo => {
             const wrap = document.createElement("div");
             wrap.className = "storico-week";
-            wrap.innerHTML = `<div class="storico-week-title">${gruppo.label || ""}</div>`;
+            wrap.innerHTML = `<div class="storico-week-title">${escapeHtml(gruppo.label || "")}</div>`;
 
             gruppo.righe.forEach(r => {
                 const riga = document.createElement("div");
                 riga.className = "storico-riga";
                 riga.innerHTML = `
-                    <span>${r.persona} — ${r.zona}</span>
+                    <span>${escapeHtml(r.persona)} — ${escapeHtml(r.zona)}</span>
                     <span class="storico-stato ${r.fatto ? "ok" : ""}">
-                        ${r.fatto ? "✅ " + formattaData(r.timestamp) : "in attesa"}
+                        ${r.fatto ? "✅ " + escapeHtml(formattaData(r.timestamp)) : "in attesa"}
                     </span>
                 `;
                 wrap.appendChild(riga);
